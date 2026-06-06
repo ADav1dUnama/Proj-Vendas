@@ -7,6 +7,9 @@
 /.pnp
 .pnp.js
 
+# secrets
+.env
+
 # testing
 /coverage
 
