@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "next dev",
-    "build": "MONGODB_URI=mongodb://localhost:27017 JWT_SECRET=secret NEXT_DISABLE_ESLINT=1 next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },

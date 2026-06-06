@@ -13,12 +13,13 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!authenticate(request)) return NextResponse.json({ message: 'Não autorizado.' }, { status: 401 });
+  const userId = authenticate(request);
+  if (!userId) return NextResponse.json({ message: 'Não autorizado.' }, { status: 401 });
   try {
-    const { event_id, user_id, score, comment } = await request.json();
-    if (!event_id || !user_id || typeof score !== 'number') return NextResponse.json({ message: 'Dados de avaliação são obrigatórios.' }, { status: 400 });
+    const { event_id, score, comment } = await request.json();
+    if (!event_id || typeof score !== 'number') return NextResponse.json({ message: 'Dados de avaliação são obrigatórios.' }, { status: 400 });
     const db = await getDb();
-    const result = await db.collection('ratings').insertOne({ event_id, user_id, score, comment: comment || '', created_at: new Date().toISOString() });
+    const result = await db.collection('ratings').insertOne({ event_id, user_id: userId, score, comment: comment || '', created_at: new Date().toISOString() });
     const doc = await db.collection('ratings').findOne({ _id: result.insertedId });
     return NextResponse.json(normalizeDocument(doc), { status: 201 });
   } catch (error) { return NextResponse.json({ message: 'Erro interno' }, { status: 500 }); }
