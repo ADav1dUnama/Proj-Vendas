@@ -1,34 +1,23 @@
 import { useState, useEffect, ChangeEvent } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Smartphone, Save, CheckCircle2 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { mockDb } from '../lib/mockDb';
 import { generatePixPayload } from '../lib/pixGenerator';
-import { PixConfig } from '../types';
 
 export function PixSection() {
   const [pixKey, setPixKey] = useState('');
   const [merchantName, setMerchantName] = useState('');
   const [saved, setSaved] = useState(false);
-  const [configId, setConfigId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploadedQrUrl, setUploadedQrUrl] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase
-      .from('pix_config')
-      .select('*')
-      .order('updated_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) {
-          const cfg = data as PixConfig;
-          setPixKey(cfg.pix_key);
-          setMerchantName(cfg.merchant_name);
-          setConfigId(cfg.id);
-        }
-      });
+    const data = mockDb.getPixConfig();
+    if (data) {
+      setPixKey(data.pix_key);
+      setMerchantName(data.merchant_name);
+    }
   }, []);
 
   const pixPayload = pixKey.trim() ? generatePixPayload(pixKey.trim(), merchantName) : '';
@@ -57,19 +46,7 @@ export function PixSection() {
   async function handleSave() {
     if (!pixKey.trim()) return;
     setLoading(true);
-    if (configId) {
-      await supabase
-        .from('pix_config')
-        .update({ pix_key: pixKey.trim(), merchant_name: merchantName, updated_at: new Date().toISOString() })
-        .eq('id', configId);
-    } else {
-      const { data } = await supabase
-        .from('pix_config')
-        .insert({ pix_key: pixKey.trim(), merchant_name: merchantName })
-        .select()
-        .maybeSingle();
-      if (data) setConfigId((data as PixConfig).id);
-    }
+    mockDb.savePixConfig({ pix_key: pixKey.trim(), merchant_name: merchantName });
     setLoading(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);

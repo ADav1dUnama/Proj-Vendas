@@ -1,6 +1,14 @@
 import { createContext, useState, useEffect, ReactNode, useContext } from 'react';
-import { User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { mockDb } from '../lib/mockDb';
+
+interface User {
+  id: string;
+  email: string;
+  created_at: string;
+  user_metadata: {
+    username: string;
+  };
+}
 
 interface AuthContextType {
   user: User | null;
@@ -17,48 +25,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null);
-      }
-    );
-
-    return () => subscription?.unsubscribe();
+    const savedUser = mockDb.getUser() as User | null;
+    setUser(savedUser);
+    setLoading(false);
   }, []);
 
-  async function signUp(email: string, password: string, username: string) {
-    const { error, data } = await supabase.auth.signUp({
+  async function signUp(email: string, _password: string, username: string) { // eslint-disable-line @typescript-eslint/no-unused-vars
+    const newUser: User = {
+      id: crypto.randomUUID(),
       email,
-      password,
-      options: {
-        data: { username },
-      },
-    });
-
-    if (error) throw error;
-    setUser(data.user);
+      created_at: new Date().toISOString(),
+      user_metadata: { username }
+    };
+    mockDb.setUser(newUser);
+    setUser(newUser);
   }
 
-  async function signIn(email: string, password: string) {
-    const { error, data } = await supabase.auth.signInWithPassword({
+  async function signIn(email: string, _password: string) { // eslint-disable-line @typescript-eslint/no-unused-vars
+    // Para mock, aceitamos qualquer login
+    const user: User = {
+      id: crypto.randomUUID(),
       email,
-      password,
-    });
-
-    if (error) throw error;
-    setUser(data.user);
+      created_at: new Date().toISOString(),
+      user_metadata: { username: email.split('@')[0] }
+    };
+    mockDb.setUser(user);
+    setUser(user);
   }
 
   async function signOut() {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    mockDb.clearUser();
     setUser(null);
   }
 

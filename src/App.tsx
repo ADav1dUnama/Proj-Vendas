@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, ShoppingBag, BarChart3, QrCode, AlertTriangle, User } from 'lucide-react';
-import { supabase } from './lib/supabase';
+import { mockDb } from './lib/mockDb';
 import { Food, Sale, PaymentMethod } from './types';
 import { Header } from './components/Header';
 import { FoodCard } from './components/FoodCard';
@@ -27,12 +27,10 @@ function AppContent() {
   const [deleteConfirm, setDeleteConfirm] = useState<Food | null>(null);
 
   const loadData = useCallback(async () => {
-    const [foodsRes, salesRes] = await Promise.all([
-      supabase.from('foods').select('*').order('display_order', { ascending: true }),
-      supabase.from('sales').select('*').order('created_at', { ascending: false }),
-    ]);
-    if (foodsRes.data) setFoods(foodsRes.data as Food[]);
-    if (salesRes.data) setSales(salesRes.data as Sale[]);
+    const foodsRes = mockDb.getFoods();
+    const salesRes = mockDb.getSales();
+    setFoods(foodsRes);
+    setSales(salesRes);
     setLoading(false);
   }, []);
 
@@ -42,40 +40,27 @@ function AppContent() {
 
   async function handleAddSale(paymentMethod: PaymentMethod) {
     if (!saleTarget) return;
-    const { data } = await supabase
-      .from('sales')
-      .insert({ food_id: saleTarget.id, payment_method: paymentMethod })
-      .select()
-      .maybeSingle();
-    if (data) setSales((prev) => [data as Sale, ...prev]);
+    const data = mockDb.addSale(saleTarget.id, paymentMethod);
+    setSales((prev) => [data, ...prev]);
     setSaleTarget(null);
   }
 
   async function handleAddFood(formData: { name: string; price: number; image_url: string }) {
     const maxOrder = foods.reduce((m, f) => Math.max(m, f.display_order), 0);
-    const { data } = await supabase
-      .from('foods')
-      .insert({ ...formData, display_order: maxOrder + 1 })
-      .select()
-      .maybeSingle();
-    if (data) setFoods((prev) => [...prev, data as Food]);
+    const data = mockDb.saveFood({ ...formData, display_order: maxOrder + 1 });
+    setFoods((prev) => [...prev, data]);
     setShowAddFood(false);
   }
 
   async function handleEditFood(formData: { name: string; price: number; image_url: string }) {
     if (!editTarget) return;
-    const { data } = await supabase
-      .from('foods')
-      .update(formData)
-      .eq('id', editTarget.id)
-      .select()
-      .maybeSingle();
-    if (data) setFoods((prev) => prev.map((f) => (f.id === editTarget.id ? (data as Food) : f)));
+    const data = mockDb.updateFood(editTarget.id, formData);
+    if (data) setFoods((prev) => prev.map((f) => (f.id === editTarget.id ? data : f)));
     setEditTarget(undefined);
   }
 
   async function handleDeleteFood(food: Food) {
-    await supabase.from('foods').delete().eq('id', food.id);
+    mockDb.deleteFood(food.id);
     setFoods((prev) => prev.filter((f) => f.id !== food.id));
     setSales((prev) => prev.filter((s) => s.food_id !== food.id));
     setDeleteConfirm(null);
